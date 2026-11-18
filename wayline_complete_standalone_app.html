@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wayline — Curated Luxury Journeys</title>
+    <meta
+      name="description"
+      content="Bespoke itineraries and transparent luxury travel curation across India's most iconic destinations."
+    />
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Compass Favicon -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolygon points='16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'/%3E%3C/svg%3E"
+    />
+
+    <!-- React, ReactDOM, Framer Motion, Lucide Icons & Babel Standalone -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+      :root {
+        --bg: #FAF9F6;
+        --fg: #000000;
+      }
+      html,
+      body {
+        background-color: var(--bg);
+        color: var(--fg);
+        font-family: "Times New Roman", Times, serif;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .text-display { letter-spacing: -0.02em; line-height: 1; }
+      .text-label { letter-spacing: 0.2em; text-transform: uppercase; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .glass-bar {
+        background: rgba(250, 249, 246, 0.9);
+        backdrop-filter: blur(8px);
+      }
+      .roadmap-line {
+        stroke-dasharray: 4 4;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef } = React;
+      const { motion, AnimatePresence, useScroll, useSpring } = window.Motion;
+
+      // Helper to render Lucide icons cleanly in standalone HTML
+      const LucideIcon = ({ name, className = "w-4 h-4", strokeWidth = 1.8 }) => {
+        const iconRef = useRef(null);
+        useEffect(() => {
+          if (iconRef.current && window.lucide) {
+            iconRef.current.innerHTML = '';
+            const el = document.createElement('i');
+            el.setAttribute('data-lucide', name);
+            if (className) el.setAttribute('class', className);
+            el.setAttribute('stroke-width', strokeWidth);
+            iconRef.current.appendChild(el);
+            window.lucide.createIcons({ root: iconRef.current });
+          }
+        }, [name, className, strokeWidth]);
+        return <span ref={iconRef} className="inline-flex items-center justify-center" />;
+      };
+
+      const MapPin = (p) => <LucideIcon name="map-pin" {...p} />;
+      const Route = (p) => <LucideIcon name="route" {...p} />;
+      const CreditCard = (p) => <LucideIcon name="credit-card" {...p} />;
+      const ChevronRight = (p) => <LucideIcon name="chevron-right" {...p} />;
+      const ArrowLeft = (p) => <LucideIcon name="arrow-left" {...p} />;
+      const Plus = (p) => <LucideIcon name="plus" {...p} />;
+      const Minus = (p) => <LucideIcon name="minus" {...p} />;
+      const ExternalLink = (p) => <LucideIcon name="external-link" {...p} />;
+      const RefreshCw = (p) => <LucideIcon name="refresh-cw" {...p} />;
+      const Compass = (p) => <LucideIcon name="compass" {...p} />;
+      const Utensils = (p) => <LucideIcon name="utensils" {...p} />;
+      const Hotel = (p) => <LucideIcon name="hotel" {...p} />;
+      const Plane = (p) => <LucideIcon name="plane" {...p} />;
+      const Car = (p) => <LucideIcon name="car" {...p} />;
+
+      const EASING = [0.22, 1, 0.36, 1];
+
+      const CITIES = [
+        {
+          id: 'delhi',
+          name: 'Delhi',
+          aliases: ['new delhi', 'dilli', 'ncr', 'del'],
+          tagline: 'Empires, ruins, and the reinvention of luxury.',
+          image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'jaipur',
+          name: 'Jaipur',
+          aliases: ['pink city', 'rajasthan', 'jai'],
+          tagline: 'The pink city of royals and artisans.',
+          image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'hyderabad',
+          name: 'Hyderabad',
+          aliases: ['cyberabad', 'hyd', 'nizam city'],
+          tagline: 'Nizami heritage meets the modern age.',
+          image: 'https://images.unsplash.com/photo-1513326738677-b964603b136d?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'bengaluru',
+          name: 'Bengaluru',
+          aliases: ['bangalore', 'blr', 'silicon valley'],
+          tagline: 'Garden city, silicon hubs, and colonial pub culture.',
+          image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'mumbai',
+          name: 'Mumbai',
+          aliases: ['bombay', 'bom', 'maximum city'],
+          tagline: 'Art Deco, coastal glam, and maximum city luxury.',
+          image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'chennai',
+          name: 'Chennai',
+          aliases: ['madras', 'maa', 'coromandel'],
+          tagline: 'Temple architecture, classical arts, and coastal heritage.',
+          image: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'kerala',
+          name: 'Kerala',
+          aliases: ['kochi', 'cochin', 'alleppey', 'munnar', 'gods own country', 'trivandrum'],
+          tagline: 'Emerald backwaters, misty tea estates, and coastal serenity.',
+          image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'pune',
+          name: 'Pune',
+          aliases: ['poona', 'pnq', 'oxford of the east', 'deccan'],
+          tagline: 'Maratha heritage, Sahyadri retreats, and cultural elegance.',
+          image: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'manipur',
+          name: 'Manipur',
+          aliases: ['imphal', 'loktak', 'imf', 'jewel of india', 'northeast'],
+          tagline: 'Floating phumdis, Loktak Lake, and timeless Meitei culture.',
+          image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&q=80&w=1600'
+        },
+        {
+          id: 'andaman',
+          name: 'Andaman',
+          aliases: ['port blair', 'havelock', 'swaraj dweep', 'neil island', 'ixz', 'andaman and nicobar'],
+          tagline: 'Turquoise lagoons, coral reefs, and private island sanctuaries.',
+          image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=1600'
+        }
+      ];
+
+      const MOCK_PACKAGES = {
+        delhi: [
+          { 
+            id: 'del-1', 
+            theme: 'Heritage Delhi', 
+            nights: 3, 
+            baseCost: 45000, 
+            image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&q=80&w=800',
+            flightCost: 12000,
+            hotelCost: 22000,
+            foodCost: 7000,
+            transportCost: 4000,
+            flightName: 'IndiGo 6E Non-stop',
+            hotelName: 'The Imperial New Delhi (Heritage Room)',
+            hotelLink: 'https://www.theimperialindia.com',
+            foodName: 'Indian Accent & Chandni Chowk Food Trail',
+            foodLink: 'https://indianaccent.com',
+            transportName: 'Luxury Private Sedan (4 Days)',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'del-2', 
+            theme: 'Old Delhi Food Trail', 
+            nights: 2, 
+            baseCost: 28000, 
+            image: 'https://images.unsplash.com/photo-1515091943-9d5c0ad475af?auto=format&fit=crop&q=80&w=800',
+            flightCost: 10000,
+            hotelCost: 12000,
+            foodCost: 4000,
+            transportCost: 2000,
+            flightName: 'Air India Direct',
+            hotelName: 'Haveli Dharampura Old Delhi',
+            hotelLink: 'https://www.havelidharampura.com',
+            foodName: 'Karim\'s & Paranthe Wali Gali Culinary Pass',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Heritage Cycle Rickshaw & Private Cab',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'del-3', 
+            theme: 'Nights & Culture', 
+            nights: 3, 
+            baseCost: 55000, 
+            image: 'https://images.unsplash.com/photo-1574871924553-62c72b22ecf2?auto=format&fit=crop&q=80&w=800',
+            flightCost: 14000,
+            hotelCost: 28000,
+            foodCost: 9000,
+            transportCost: 4000,
+            flightName: 'Vistara Premium Economy',
+            hotelName: 'The Manor Friends Colony',
+            hotelLink: 'https://www.makemytrip.com',
+            foodName: 'Hauz Khas Village Dining & Speakeasy Tour',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Chauffeur On Demand',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'del-4', 
+            theme: 'Slow Luxury', 
+            nights: 4, 
+            baseCost: 125000, 
+            image: 'https://images.unsplash.com/photo-1558350315-8aa00e8e4590?auto=format&fit=crop&q=80&w=800',
+            flightCost: 22000,
+            hotelCost: 75000,
+            foodCost: 18000,
+            transportCost: 10000,
+            flightName: 'Air India Business Class',
+            hotelName: 'The Leela Palace New Delhi (Executive Suite)',
+            hotelLink: 'https://www.theleela.com',
+            foodName: 'Bukhara & Private Chef Experience',
+            foodLink: 'https://www.itchotels.com',
+            transportName: 'Mercedes E-Class Airport & City Transit',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        hyderabad: [
+          { 
+            id: 'hyd-1', 
+            theme: 'Nizami Heritage', 
+            nights: 3, 
+            baseCost: 68000, 
+            image: 'https://images.unsplash.com/photo-1513326738677-b964603b136d?auto=format&fit=crop&q=80&w=800',
+            flightCost: 15000,
+            hotelCost: 38000,
+            foodCost: 10000,
+            transportCost: 5000,
+            flightName: 'Vistara Direct to Hyderabad',
+            hotelName: 'Taj Falaknuma Palace',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Adaa Royal Dining & Paradise Biryani Trail',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Royal Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'hyd-2', 
+            theme: 'Charminar Culinary & Pearl Trail', 
+            nights: 2, 
+            baseCost: 34000, 
+            image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?auto=format&fit=crop&q=80&w=800',
+            flightCost: 11000,
+            hotelCost: 14000,
+            foodCost: 6000,
+            transportCost: 3000,
+            flightName: 'IndiGo 6E Direct to HYD',
+            hotelName: 'ITC Kohenur Luxury Collection',
+            hotelLink: 'https://www.itchotels.com',
+            foodName: 'Shadab Haleem, Irani Chai & Osmania Biscuit Walk',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Old City Heritage Cab & Chauffeur',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'hyd-3', 
+            theme: 'Golconda Dusk & Deccan Gastronomy', 
+            nights: 3, 
+            baseCost: 49000, 
+            image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&q=80&w=800',
+            flightCost: 13000,
+            hotelCost: 24000,
+            foodCost: 8000,
+            transportCost: 4000,
+            flightName: 'Air India Direct to HYD',
+            hotelName: 'Park Hyatt Hyderabad (Regency Suite)',
+            hotelLink: 'https://www.hyatt.com',
+            foodName: 'Dum Pukht Begum’s & Qutb Shahi Feast',
+            foodLink: 'https://www.itchotels.com',
+            transportName: 'Private Luxury Sedan',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        jaipur: [
+          { 
+            id: 'jai-1', 
+            theme: 'Forts & Palaces', 
+            nights: 3, 
+            baseCost: 52000, 
+            image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&q=80&w=800',
+            flightCost: 12000,
+            hotelCost: 26000,
+            foodCost: 9000,
+            transportCost: 5000,
+            flightName: 'IndiGo Direct to Jaipur',
+            hotelName: 'Taj Jai Mahal Palace',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Suvarna Mahal & Royal Thali Experience',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Private Chauffeur SUV',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'jai-2', 
+            theme: 'Bazaars & Crafts', 
+            nights: 2, 
+            baseCost: 32000, 
+            image: 'https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&q=80&w=800',
+            flightCost: 10000,
+            hotelCost: 14000,
+            foodCost: 5000,
+            transportCost: 3000,
+            flightName: 'Air India Direct',
+            hotelName: 'Samode Haveli Jaipur',
+            hotelLink: 'https://www.samode.com',
+            foodName: 'LMB Johari Bazaar & Tapri Tea House',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Heritage City Coach & Cab',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'jai-3', 
+            theme: 'Rajasthani Royal Feast & Nahargarh', 
+            nights: 3, 
+            baseCost: 64000, 
+            image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&q=80&w=800',
+            flightCost: 13000,
+            hotelCost: 35000,
+            foodCost: 11000,
+            transportCost: 5000,
+            flightName: 'Vistara Direct to Jaipur',
+            hotelName: 'Rambagh Palace Courtyard Room',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Dal Baati Churma & Laal Maas Private Tasting',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Vintage-Style Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        bengaluru: [
+          { 
+            id: 'ben-1', 
+            theme: 'Garden City & Heritage', 
+            nights: 3, 
+            baseCost: 48000, 
+            image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&q=80&w=800',
+            flightCost: 11000,
+            hotelCost: 24000,
+            foodCost: 8000,
+            transportCost: 5000,
+            flightName: 'IndiGo 6E Direct to BLR',
+            hotelName: 'The Taj West End (Heritage Villa Room)',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Lalbagh Culinary Walk & UB City Fine Dining',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Chauffeur EV Executive Sedan',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'ben-2', 
+            theme: 'Craft Beer & Silicon Trail', 
+            nights: 2, 
+            baseCost: 35000, 
+            image: 'https://images.unsplash.com/photo-1584225065152-4a1454aa3d4e?auto=format&fit=crop&q=80&w=800',
+            flightCost: 10000,
+            hotelCost: 16000,
+            foodCost: 6000,
+            transportCost: 3000,
+            flightName: 'Air India Express Direct',
+            hotelName: 'The Oberoi Bengaluru (Garden View Room)',
+            hotelLink: 'https://www.oberoihotels.com',
+            foodName: 'Toit Brewpub & Indiranagar Food Crawl',
+            foodLink: 'https://toit.in',
+            transportName: 'Private Airport & City Transit Cab',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'ben-3', 
+            theme: 'Filter Coffee & Malleswaram Heritage', 
+            nights: 2, 
+            baseCost: 29000, 
+            image: 'https://images.unsplash.com/photo-1630383249896-424e482df921?auto=format&fit=crop&q=80&w=800',
+            flightCost: 9500,
+            hotelCost: 12500,
+            foodCost: 4500,
+            transportCost: 2500,
+            flightName: 'IndiGo 6E Direct to BLR',
+            hotelName: 'ITC Gardenia Bengaluru',
+            hotelLink: 'https://www.itchotels.com',
+            foodName: 'CTR Benne Masala Dosa & Brahmin’s Coffee Bar Trail',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private City Chauffeur',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        mumbai: [
+          { 
+            id: 'mum-1', 
+            theme: 'Coastal Grandeur & Taj Heritage', 
+            nights: 3, 
+            baseCost: 75000, 
+            image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&q=80&w=800',
+            flightCost: 14000,
+            hotelCost: 42000,
+            foodCost: 12000,
+            transportCost: 7000,
+            flightName: 'IndiGo 6E Non-stop to BOM',
+            hotelName: 'The Taj Mahal Palace Mumbai (Sea View Tower Room)',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Wasabi by Morimoto & Trishna Seafood Trail',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Luxury Private Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'mum-2', 
+            theme: 'Art Deco & South Mumbai Trail', 
+            nights: 2, 
+            baseCost: 42000, 
+            image: 'https://images.unsplash.com/photo-1566552881560-0be862a7c445?auto=format&fit=crop&q=80&w=800',
+            flightCost: 11000,
+            hotelCost: 21000,
+            foodCost: 7000,
+            transportCost: 3000,
+            flightName: 'Air India Direct to BOM',
+            hotelName: 'Abode Bombay Heritage Boutique Hotel',
+            hotelLink: 'https://abodeboutiquehotel.com',
+            foodName: 'Kala Ghoda Cafe & Parsi Cafe Brittania Tour',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Heritage Black & Gold Cab Charter',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'mum-3', 
+            theme: 'Bandra Seafront & Coastal Spice Trail', 
+            nights: 3, 
+            baseCost: 56000, 
+            image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&q=80&w=800',
+            flightCost: 12000,
+            hotelCost: 30000,
+            foodCost: 9000,
+            transportCost: 5000,
+            flightName: 'Vistara Direct to BOM',
+            hotelName: 'Taj Lands End Bandra (Sea View)',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Gajalee Malvani Seafood & Pali Hill Tasting',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        chennai: [
+          { 
+            id: 'che-1', 
+            theme: 'Coromandel Heritage & Marina', 
+            nights: 3, 
+            baseCost: 46000, 
+            image: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?auto=format&fit=crop&q=80&w=800',
+            flightCost: 11000,
+            hotelCost: 24000,
+            foodCost: 7000,
+            transportCost: 4000,
+            flightName: 'IndiGo 6E Direct to MAA',
+            hotelName: 'Taj Connemara Chennai (Heritage Suite)',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Southern Spice & Mylapore Filter Coffee Trail',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Private Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'che-2', 
+            theme: 'Mahabalipuram Coast & Arts', 
+            nights: 2, 
+            baseCost: 38000, 
+            image: 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&q=80&w=800',
+            flightCost: 10000,
+            hotelCost: 19000,
+            foodCost: 6000,
+            transportCost: 3000,
+            flightName: 'Air India Direct to MAA',
+            hotelName: 'Taj Fisherman’s Cove Resort & Spa',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Bay View Seafood & DakshinaChitra Crafts Pass',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'ECR Coastal Chauffeur Charter',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'che-3', 
+            theme: 'Chettinad Spice & Temple Trail', 
+            nights: 3, 
+            baseCost: 44000, 
+            image: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?auto=format&fit=crop&q=80&w=800',
+            flightCost: 11000,
+            hotelCost: 22000,
+            foodCost: 7000,
+            transportCost: 4000,
+            flightName: 'IndiGo 6E Direct to MAA',
+            hotelName: 'ITC Grand Chola Chennai',
+            hotelLink: 'https://www.itchotels.com',
+            foodName: 'Peshawri & Authentic Chettinad Banana Leaf Feast',
+            foodLink: 'https://www.itchotels.com',
+            transportName: 'Private Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        kerala: [
+          { 
+            id: 'ker-1', 
+            theme: 'Alleppey Backwaters & Houseboat', 
+            nights: 3, 
+            baseCost: 65000, 
+            image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&q=80&w=800',
+            flightCost: 14000,
+            hotelCost: 36000,
+            foodCost: 9000,
+            transportCost: 6000,
+            flightName: 'Vistara Direct to Kochi (COK)',
+            hotelName: 'Kumarakom Lake Resort & Private Kettuvallam',
+            hotelLink: 'https://www.kumarakomlakeresort.in',
+            foodName: 'Traditional Sadhya & Toddy Shop Culinary Tour',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private Chauffeur & Backwater Cruise',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'ker-2', 
+            theme: 'Munnar Tea Estates & Fort Kochi', 
+            nights: 4, 
+            baseCost: 72000, 
+            image: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&q=80&w=800',
+            flightCost: 15000,
+            hotelCost: 40000,
+            foodCost: 10000,
+            transportCost: 7000,
+            flightName: 'IndiGo 6E Direct to Kochi (COK)',
+            hotelName: 'Brunton Boatyard & Windermere Estate Munnar',
+            hotelLink: 'https://www.cghearth.com',
+            foodName: 'History Restaurant & Private Tea Tasting',
+            foodLink: 'https://www.cghearth.com',
+            transportName: 'Highland SUV Chauffeur Service',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'ker-3', 
+            theme: 'Malabar Spice Coast & Malabar Feast', 
+            nights: 3, 
+            baseCost: 58000, 
+            image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&q=80&w=800',
+            flightCost: 13000,
+            hotelCost: 31000,
+            foodCost: 8500,
+            transportCost: 5500,
+            flightName: 'Air India Direct to Calicut / Kochi',
+            hotelName: 'Taj Malabar Resort & Spa, Cochin',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'Appam, Karimeen Pollichathu & Spice Plantation Table',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Private Coastal Chauffeur',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        pune: [
+          { 
+            id: 'pun-1', 
+            theme: 'Deccan Heritage & Koregaon Park', 
+            nights: 3, 
+            baseCost: 44000, 
+            image: 'https://images.unsplash.com/photo-1589308078059-be1415eab4c3?auto=format&fit=crop&q=80&w=800',
+            flightCost: 10000,
+            hotelCost: 23000,
+            foodCost: 7000,
+            transportCost: 4000,
+            flightName: 'IndiGo 6E Direct to PNQ',
+            hotelName: 'The Ritz-Carlton Pune (Deluxe Suite)',
+            hotelLink: 'https://www.ritzcarlton.com',
+            foodName: 'Three Kitchens & Camp Heritage Culinary Walk',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private Chauffeur Sedan',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'pun-2', 
+            theme: 'Sahyadri Hills & Vineyard Escape', 
+            nights: 2, 
+            baseCost: 39000, 
+            image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=800',
+            flightCost: 9000,
+            hotelCost: 21000,
+            foodCost: 6000,
+            transportCost: 3000,
+            flightName: 'Air India Direct to PNQ',
+            hotelName: 'Hilton Shillim Estate Retreat & Spa',
+            hotelLink: 'https://www.hilton.com',
+            foodName: 'Organic Estate Tasting & Vineyard Lunch',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private Highland SUV Transfer',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'pun-3', 
+            theme: 'Peshwa Culinary & Old Pune Trail', 
+            nights: 2, 
+            baseCost: 31000, 
+            image: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&q=80&w=800',
+            flightCost: 9000,
+            hotelCost: 14500,
+            foodCost: 5000,
+            transportCost: 2500,
+            flightName: 'IndiGo 6E Direct to PNQ',
+            hotelName: 'Conrad Pune Luxury Room',
+            hotelLink: 'https://www.hilton.com',
+            foodName: 'Shabree Maharashtrian Thali & Shrewsbury Heritage Walk',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private City Chauffeur',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        manipur: [
+          { 
+            id: 'man-1', 
+            theme: 'Loktak Lake & Kangla Heritage', 
+            nights: 3, 
+            baseCost: 54000, 
+            image: 'https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&q=80&w=800',
+            flightCost: 16000,
+            hotelCost: 24000,
+            foodCost: 8000,
+            transportCost: 6000,
+            flightName: 'IndiGo 6E Direct to Imphal (IMF)',
+            hotelName: 'Classic Grande Imphal & Sendra Lake Resort',
+            hotelLink: 'https://www.theclassichotel.in',
+            foodName: 'Authentic Manipuri Eromba & Ima Keithel Culinary Walk',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private Chauffeur SUV & Lake Boat Charter',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'man-2', 
+            theme: 'Ukhrul Highlands & Shirui Trail', 
+            nights: 4, 
+            baseCost: 62000, 
+            image: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=800',
+            flightCost: 17000,
+            hotelCost: 28000,
+            foodCost: 9000,
+            transportCost: 8000,
+            flightName: 'Air India Direct to Imphal (IMF)',
+            hotelName: 'The Sangai Continental & Ukhrul Boutique Retreat',
+            hotelLink: 'https://www.theclassichotel.in',
+            foodName: 'Naga & Meitei Smoked Feast & Tea Estate Tasting',
+            foodLink: 'https://www.zomato.com',
+            transportName: '4x4 Highland Expedition SUV',
+            transportLink: 'https://www.uber.com'
+          },
+          { 
+            id: 'man-3', 
+            theme: 'Moinao Gastronomy & Sangai Reserve', 
+            nights: 3, 
+            baseCost: 49000, 
+            image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=800',
+            flightCost: 15500,
+            hotelCost: 21500,
+            foodCost: 7000,
+            transportCost: 5000,
+            flightName: 'IndiGo 6E Direct to Imphal (IMF)',
+            hotelName: 'Classic Grande Imphal Heritage Wing',
+            hotelLink: 'https://www.theclassichotel.in',
+            foodName: 'Chak-Hao Black Rice Pudding & Royal Meitei Thali',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Private Chauffeur & Keibul Lamjao Boat',
+            transportLink: 'https://www.uber.com'
+          }
+        ],
+        andaman: [
+          { 
+            id: 'and-1', 
+            theme: 'Havelock Private Beach & Coral Reefs', 
+            nights: 4, 
+            baseCost: 88000, 
+            image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800',
+            flightCost: 22000,
+            hotelCost: 46000,
+            foodCost: 12000,
+            transportCost: 8000,
+            flightName: 'Vistara Direct to Port Blair (IXZ)',
+            hotelName: 'Taj Exotica Resort & Spa, Andamans (Luxury Villa)',
+            hotelLink: 'https://www.tajhotels.com',
+            foodName: 'The Turtle House Seafood & Candlelight Beach Dining',
+            foodLink: 'https://www.tajhotels.com',
+            transportName: 'Private Catamaran Ferry & Island Chauffeur',
+            transportLink: 'https://www.makruzz.com'
+          },
+          { 
+            id: 'and-2', 
+            theme: 'Neil Island & Radhanagar Slow Escape', 
+            nights: 3, 
+            baseCost: 69000, 
+            image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&q=80&w=800',
+            flightCost: 20000,
+            hotelCost: 34000,
+            foodCost: 9000,
+            transportCost: 6000,
+            flightName: 'IndiGo 6E Direct to Port Blair (IXZ)',
+            hotelName: 'Barefoot at Havelock & SeaShell Neil Island',
+            hotelLink: 'https://www.barefoot-andaman.com',
+            foodName: 'Catch of the Day & Private Sunset Yacht Cruise',
+            foodLink: 'https://www.zomato.com',
+            transportName: 'Royal Class Ferry & Island Transfers',
+            transportLink: 'https://www.makruzz.com'
+          },
+          { 
+            id: 'and-3', 
+            theme: 'Port Blair Heritage & Island Seafood Table', 
+            nights: 3, 
+            baseCost: 62000, 
+            image: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&q=80&w=800',
+            flightCost: 19000,
+            hotelCost: 29000,
+            foodCost: 8500,
+            transportCost: 5500,
+            flightName: 'Air India Direct to Port Blair (IXZ)',
+            hotelName: 'Welcomhotel by ITC Hotels, Bay Island',
+            hotelLink: 'https://www.itchotels.com',
+            foodName: 'Grilled Red Snapper, Lobster & Ross Island Excursion',
+            foodLink: 'https://www.itchotels.com',
+            transportName: 'Private Island SUV & Ferry Pass',
+            transportLink: 'https://www.makruzz.com'
+          }
+        ]
+      };
+
+      const CITY_FOOD_BACKGROUNDS = {
+        delhi: {
+          dish: 'Old Delhi Kebabs, Mughlai Curries & Chaat',
+          image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&q=80&w=1400'
+        },
+        jaipur: {
+          dish: 'Royal Rajasthani Thali, Dal Baati & Laal Maas',
+          image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&q=80&w=1400'
+        },
+        hyderabad: {
+          dish: 'Nizami Dum Biryani, Haleem & Irani Chai',
+          image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&q=80&w=1400'
+        },
+        bengaluru: {
+          dish: 'Benne Masala Dosa, Filter Kaapi & Craft Gastronomy',
+          image: 'https://images.unsplash.com/photo-1630383249896-424e482df921?auto=format&fit=crop&q=80&w=1400'
+        },
+        mumbai: {
+          dish: 'Coastal Malvani Seafood, Parsi Berry Pulao & Chaat',
+          image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&q=80&w=1400'
+        },
+        chennai: {
+          dish: 'Chettinad Spices, Banana Leaf Sadhya & Filter Coffee',
+          image: 'https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?auto=format&fit=crop&q=80&w=1400'
+        },
+        kerala: {
+          dish: 'Karimeen Pollichathu, Appam & Malabar Spice Table',
+          image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&q=80&w=1400'
+        },
+        pune: {
+          dish: 'Deccan Thali, Misal & Sahyadri Vineyard Dining',
+          image: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&q=80&w=1400'
+        },
+        manipur: {
+          dish: 'Chak-Hao Black Rice, Eromba & Smoked Highland Feast',
+          image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=1400'
+        },
+        andaman: {
+          dish: 'Fresh Island Lobster, Coral Coast Seafood & Tropical Spices',
+          image: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&q=80&w=1400'
+        }
+      };
+
+      const formatINR = (amount) => {
+        if (amount === undefined || amount === null) return '₹0';
+        return '₹' + Number(amount).toLocaleString('en-IN');
+      };
+
+      const calculateNights = (start, end) => {
+        if (!start || !end) return 3;
+        const d1 = new Date(start);
+        const d2 = new Date(end);
+        const diffTime = d2.getTime() - d1.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays > 0 ? diffDays : 3;
+      };
+
+      const formatDateRange = (startStr, endStr) => {
+        if (!startStr || !endStr) return '';
+        const d1 = new Date(startStr);
+        const d2 = new Date(endStr);
+        const options = { month: 'short', day: 'numeric' };
+        const yearOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return '';
+        if (d1.getFullYear() === d2.getFullYear()) {
+          return `${d1.toLocaleDateString('en-IN', options)} – ${d2.toLocaleDateString('en-IN', yearOptions)}`;
+        }
+        return `${d1.toLocaleDateString('en-IN', yearOptions)} – ${d2.toLocaleDateString('en-IN', yearOptions)}`;
+      };
+
+      const getAdjustedPackage = (pkg, tripParams) => {
+        if (!pkg) return null;
+        if (!tripParams || !tripParams.startDate || !tripParams.endDate) return pkg;
+
+        const nights = calculateNights(tripParams.startDate, tripParams.endDate);
+        const baseNights = pkg.nights || 3;
+        const ratio = nights / baseNights;
+        const roomRatio = (tripParams.rooms || 1);
+
+        const baseHotel = pkg.hotelCost || Math.round(pkg.baseCost * 0.48);
+        const baseFood = pkg.foodCost || Math.round(pkg.baseCost * 0.15);
+        const baseTransport = pkg.transportCost || Math.round(pkg.baseCost * 0.09);
+        const baseFlight = pkg.flightCost || Math.round(pkg.baseCost * 0.28);
+
+        const adjustedHotel = Math.round(baseHotel * ratio * roomRatio);
+        const adjustedFood = Math.round(baseFood * ratio * ((tripParams.guests || 2) / 2));
+        const adjustedTransport = Math.round(baseTransport * ratio);
+        const flightCost = Math.round(baseFlight * ((tripParams.guests || 2) / 2));
+
+        const adjustedBaseCost = flightCost + adjustedHotel + adjustedFood + adjustedTransport;
+
+        return {
+          ...pkg,
+          nights: nights,
+          baseCost: adjustedBaseCost,
+          hotelCost: adjustedHotel,
+          foodCost: adjustedFood,
+          transportCost: adjustedTransport,
+          flightCost: flightCost,
+          startDate: tripParams.startDate,
+          endDate: tripParams.endDate,
+          dateRangeStr: formatDateRange(tripParams.startDate, tripParams.endDate)
+        };
+      };
+
+      const LoadingScreen = ({ onFinish }) => {
+        const [progress, setProgress] = useState(0);
+
+        useEffect(() => {
+          let frameId;
+          let startTime = null;
+          const duration = 1600;
+
+          const easeInOutCubic = (t) => {
+            return t < 0.5 
+              ? 4 * t * t * t 
+              : 1 - Math.pow(-2 * t + 2, 3) / 2;
+          };
+
+          const animateProgress = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const linearProgress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeInOutCubic(linearProgress) * 100;
+
+            setProgress(easedProgress);
+
+            if (linearProgress < 1) {
+              frameId = requestAnimationFrame(animateProgress);
+            } else {
+              setTimeout(onFinish, 250);
+            }
+          };
+
+          frameId = requestAnimationFrame(animateProgress);
+          return () => { if (frameId) cancelAnimationFrame(frameId); };
+        }, [onFinish]);
+
+        return (
+          <motion.div 
+            className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center text-white"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.8, ease: EASING } }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: EASING }}
+              className="flex items-center space-x-3 mb-8"
+            >
+              <div className="w-8 h-8 flex items-center justify-center text-white">
+                <motion.svg 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="1.8" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  className="w-7 h-7"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" fillOpacity="0.2" />
+                </motion.svg>
+              </div>
+              <span className="font-serif italic text-3xl md:text-4xl tracking-tight">Wayline</span>
+            </motion.div>
+
+            <div className="w-48 md:w-64 h-[2px] bg-white/20 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white rounded-full transition-all duration-75 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <p className="font-serif italic text-white/50 text-xs mt-4 tracking-widest uppercase">
+              Curating Luxury Journeys
+            </p>
+          </motion.div>
+        );
+      };
+
+      const TopBar = ({ activeTab, onSelectTab }) => {
+        const tabs = [
+          { id: 'location', label: 'LOCATION', icon: MapPin },
+          { id: 'plan', label: 'PLAN', icon: Route },
+          { id: 'payment', label: 'PAYMENT', icon: CreditCard }
+        ];
+
+        return (
+          <motion.header className="fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-in-out pointer-events-none">
+            <div className="max-w-[1440px] mx-auto h-24 px-4 md:px-8 flex items-center justify-between">
+              <div 
+                className="hidden md:flex items-center space-x-2.5 font-serif italic text-xl cursor-pointer pointer-events-auto bg-black text-white px-4 py-2 rounded-full border border-white/20 shadow-lg group hover:scale-105 transition-transform"
+                onClick={() => onSelectTab && onSelectTab('location')}
+              >
+                <div className="w-5 h-5 flex items-center justify-center text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 transform group-hover:rotate-45 transition-transform duration-500">
+                    <circle cx="12" cy="12" r="10" />
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" fillOpacity="0.2" />
+                  </svg>
+                </div>
+                <span className="tracking-tight text-lg">Wayline</span>
+              </div>
+              
+              <nav className="pointer-events-auto mx-auto md:mx-0 flex items-center space-x-2 md:space-x-6 bg-black text-white px-6 py-3 rounded-full border border-white/20 shadow-2xl backdrop-blur-md">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <div 
+                      key={tab.id} 
+                      className={`flex items-center space-x-2 px-3 py-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        isActive ? 'bg-white/15 text-white font-medium' : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                      onClick={() => onSelectTab && onSelectTab(tab.id)}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-gray-400'}`} strokeWidth={1.8} />
+                      <span className={`text-label text-[10px] md:text-xs tracking-[0.2em] relative ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                        {tab.label}
+                        {isActive && (
+                          <motion.span 
+                            layoutId="activePillUnderline" 
+                            className="absolute -bottom-1 left-0 right-0 h-[1.5px] bg-white rounded-full" 
+                          />
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </nav>
+
+              <div className="hidden md:block w-28" />
+            </div>
+          </motion.header>
+        );
+      };
+
+      const CityHero = ({ onSelectCity }) => {
+        const [hoveredId, setHoveredId] = useState(null);
+
+        return (
+          <div className="min-h-screen w-full bg-black text-white pt-28 pb-12 px-4 md:px-10 flex flex-col justify-between">
+            <div className="max-w-[1440px] w-full mx-auto flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-white/15">
+              <div>
+                <span className="text-label text-[10px] md:text-xs text-white/50 tracking-[0.25em] block mb-2">
+                  SELECT YOUR DESTINATION
+                </span>
+                <h1 className="text-3xl md:text-5xl font-serif text-display text-white">
+                  Curated Indian Journeys
+                </h1>
+              </div>
+              <p className="font-serif italic text-sm text-white/60 mt-2 sm:mt-0">
+                Bespoke itineraries across India’s most iconic destinations
+              </p>
+            </div>
+
+            <div className="max-w-[1440px] w-full mx-auto flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 md:gap-6 items-stretch">
+              {CITIES.map((city, idx) => {
+                const isHovered = hoveredId === city.id;
+                const isDimmed = hoveredId !== null && !isHovered;
+
+                return (
+                  <motion.div
+                    key={city.id}
+                    onMouseEnter={() => setHoveredId(city.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    onClick={() => onSelectCity(city)}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{
+                      opacity: isDimmed ? 0.5 : 1,
+                      y: isHovered ? -6 : 0
+                    }}
+                    transition={{ duration: 0.4, ease: EASING }}
+                    className="group relative min-h-[320px] lg:min-h-[360px] rounded-t-full rounded-b-3xl overflow-hidden bg-neutral-900 border border-white/20 hover:border-white/70 cursor-pointer flex flex-col justify-between p-6 shadow-2xl transition-colors duration-300"
+                  >
+                    <img
+                      src={city.image}
+                      alt={city.name}
+                      className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-110 opacity-75 group-hover:opacity-100"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-black/40" />
+
+                    <div className="relative z-10 flex justify-center pt-3">
+                      <span className="px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-[10px] font-sans tracking-[0.2em] text-white/85">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+
+                    <div className="relative z-10 text-center">
+                      <h2 className="text-2xl xl:text-[26px] font-serif text-white text-display mb-2 group-hover:italic transition-all">
+                        {city.name}
+                      </h2>
+                      <p className="text-[11px] font-serif italic text-white/75 line-clamp-2 leading-relaxed mb-3">
+                        {city.tagline}
+                      </p>
+                      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 border border-white/25 text-white group-hover:bg-white group-hover:text-black transition-colors duration-300">
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
+
+      const TripDetailsSheet = ({ city, onComplete, onBack }) => {
+        const [step, setStep] = useState(1);
+        const [origin, setOrigin] = useState('');
+        const [showSuggestions, setShowSuggestions] = useState(false);
+        const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+        const [endDate, setEndDate] = useState(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        const [guests, setGuests] = useState(2);
+        const [rooms, setRooms] = useState(1);
+        const [budget, setBudget] = useState(65000);
+
+        const nights = calculateNights(startDate, endDate);
+        const recommendedBudget = Math.round(((guests * 5500) + (rooms * 8500 * nights) + (guests * 2200 * nights)) / 5000) * 5000;
+        const foodBackdrop = CITY_FOOD_BACKGROUNDS[city.id] || CITY_FOOD_BACKGROUNDS.delhi;
+
+        const getExpectationTier = (amount) => {
+          const ratio = amount / Math.max(recommendedBudget, 15000);
+          if (ratio < 0.75) {
+            return {
+              tier: 'Boutique & Essential Comfort',
+              summary: 'Direct economy flights, charming heritage havelis or boutique stays, local culinary walks, and reliable city transfers.'
+            };
+          }
+          if (ratio <= 1.25) {
+            return {
+              tier: 'Signature Wayline Luxury (Recommended)',
+              summary: `Tailored for ${guests} ${guests === 1 ? 'guest' : 'guests'} across ${rooms} ${rooms === 1 ? 'room' : 'rooms'} (${nights} nights) — 5-star heritage palaces, reserved fine-dining tables, and private chauffeur transit.`
+            };
+          }
+          return {
+            tier: 'Ultra-Luxury & Private Suites',
+            summary: `Elevated indulgence for ${guests} ${guests === 1 ? 'guest' : 'guests'} & ${rooms} ${rooms === 1 ? 'suite' : 'suites'} — flagship palace suites, chef’s table tastings, private yacht/boat charters, and dedicated luxury SUVs.`
+          };
+        };
+
+        const expectation = getExpectationTier(budget);
+
+        const filteredOrigins = origin.trim()
+          ? CITIES.filter((c) => {
+              const q = origin.toLowerCase().trim();
+              return (
+                c.name.toLowerCase().includes(q) ||
+                (c.aliases && c.aliases.some((alias) => alias.toLowerCase().includes(q)))
+              );
+            })
+          : [];
+
+        const handleSelectOrigin = (cityName) => {
+          setOrigin(cityName);
+          setShowSuggestions(false);
+          setStep(2);
+        };
+
+        const handleNext = () => {
+          if (step < 4) {
+            setStep(step + 1);
+          } else {
+            const nights = calculateNights(startDate, endDate);
+            onComplete({
+              origin: origin.trim() || 'Bengaluru',
+              startDate,
+              endDate,
+              dates: `${nights} Nights`,
+              guests,
+              rooms,
+              budget
+            });
+          }
+        };
+
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.45, ease: EASING }}
+            className="min-h-screen pt-32 pb-24 px-6 md:px-12 max-w-3xl mx-auto bg-[#FAF9F6] flex flex-col justify-between"
+          >
+            <div>
+              <button
+                onClick={() => (step > 1 ? setStep(step - 1) : onBack())}
+                className="group inline-flex items-center space-x-2.5 px-4 py-2 mb-10 rounded-full bg-black/5 hover:bg-black text-black hover:text-white border border-black/10 transition-all duration-300 shadow-sm cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                <span className="text-label text-xs tracking-widest font-sans font-medium">
+                  {step > 1 ? 'Previous Step' : 'Back to Destinations'}
+                </span>
+              </button>
+
+              <div className="flex items-center space-x-3 text-xs tracking-[0.2em] uppercase text-gray-400 mb-3">
+                <span>DESTINATION: {city.name}</span>
+                <span>·</span>
+                <span>STEP 0{step} / 04</span>
+              </div>
+
+              {step === 1 && (
+                <div className="relative">
+                  <h2 className="text-4xl md:text-6xl font-serif text-display mb-4">
+                    Where are you departing from?
+                  </h2>
+                  <p className="font-serif italic text-gray-500 mb-10">
+                    Type your departure city (e.g., Bangalore, Bombay, Madras, Kochi)
+                  </p>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={origin}
+                      onFocus={() => setShowSuggestions(true)}
+                      onChange={(e) => {
+                        setOrigin(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      placeholder="Enter starting city..."
+                      className="w-full bg-transparent border-b-2 border-black py-4 text-2xl md:text-3xl font-serif focus:outline-none placeholder:text-gray-300"
+                    />
+
+                    {showSuggestions && filteredOrigins.length > 0 && (
+                      <div className="mt-3 bg-white border border-black/15 rounded-2xl shadow-xl overflow-hidden divide-y divide-gray-100">
+                        {filteredOrigins.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSelectOrigin(item.name)}
+                            className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-black hover:text-white transition-colors group cursor-pointer"
+                          >
+                            <div>
+                              <span className="text-xl font-serif block">{item.name}</span>
+                              <span className="text-xs font-serif italic opacity-60">
+                                {item.tagline}
+                              </span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div>
+                  <h2 className="text-4xl md:text-6xl font-serif text-display mb-4">
+                    When is your journey?
+                  </h2>
+                  <p className="font-serif italic text-gray-500 mb-10">
+                    Select your departure and return dates ({calculateNights(startDate, endDate)} Nights)
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                    <div className="p-6 bg-white border border-black/15 rounded-2xl">
+                      <label className="text-label text-[10px] text-gray-500 block mb-2">
+                        DEPARTURE DATE
+                      </label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full text-xl font-serif bg-transparent focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="p-6 bg-white border border-black/15 rounded-2xl">
+                      <label className="text-label text-[10px] text-gray-500 block mb-2">
+                        RETURN DATE
+                      </label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full text-xl font-serif bg-transparent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div>
+                  <h2 className="text-4xl md:text-6xl font-serif text-display mb-4">
+                    Who is traveling?
+                  </h2>
+                  <p className="font-serif italic text-gray-500 mb-10">
+                    Configure travelers and private suites
+                  </p>
+
+                  <div className="space-y-6">
+                    <div className="p-6 bg-white border border-black/15 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl font-serif">Guests</h3>
+                        <p className="text-xs font-serif italic text-gray-500">Adults & children</p>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <button
+                          type="button"
+                          onClick={() => setGuests(Math.max(1, guests - 1))}
+                          className="w-10 h-10 rounded-full border border-black/20 flex items-center justify-center hover:bg-black hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="text-2xl font-serif w-8 text-center">{guests}</span>
+                        <button
+                          type="button"
+                          onClick={() => setGuests(guests + 1)}
+                          className="w-10 h-10 rounded-full border border-black/20 flex items-center justify-center hover:bg-black hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-white border border-black/15 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <h3 className="text-2xl font-serif">Rooms</h3>
+                        <p className="text-xs font-serif italic text-gray-500">Heritage suites & villas</p>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <button
+                          type="button"
+                          onClick={() => setRooms(Math.max(1, rooms - 1))}
+                          className="w-10 h-10 rounded-full border border-black/20 flex items-center justify-center hover:bg-black hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="text-2xl font-serif w-8 text-center">{rooms}</span>
+                        <button
+                          type="button"
+                          onClick={() => setRooms(rooms + 1)}
+                          className="w-10 h-10 rounded-full border border-black/20 flex items-center justify-center hover:bg-black hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 4 && (
+                <div>
+                  <h2 className="text-4xl md:text-6xl font-serif text-display mb-4">
+                    What is your target budget?
+                  </h2>
+                  <p className="font-serif italic text-gray-500 mb-8">
+                    Calculated for {guests} {guests === 1 ? 'Guest' : 'Guests'} · {rooms} {rooms === 1 ? 'Room' : 'Rooms'} · {nights} Nights in {city.name}
+                  </p>
+
+                  <div className="mb-6 p-5 bg-black text-white rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+                    <div>
+                      <span className="text-label text-[10px] text-white/60 block mb-1">
+                        RECOMMENDED FOR YOUR GROUP
+                      </span>
+                      <div className="text-2xl md:text-3xl font-serif tabular-nums">
+                        {formatINR(recommendedBudget)}
+                      </div>
+                      <p className="text-xs font-serif italic text-white/75 mt-0.5">
+                        Optimal balance for {guests} {guests === 1 ? 'person' : 'people'} & {rooms} {rooms === 1 ? 'room' : 'rooms'}
+                      </p>
+                    </div>
+                    {budget !== recommendedBudget && (
+                      <button
+                        type="button"
+                        onClick={() => setBudget(recommendedBudget)}
+                        className="self-start sm:self-center px-4 py-2 rounded-full bg-white text-black text-[11px] font-sans uppercase tracking-widest font-medium hover:bg-neutral-200 transition-colors cursor-pointer shrink-0"
+                      >
+                        Apply Suggested
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-8 bg-white border border-black/15 rounded-2xl shadow-sm">
+                    <div className="flex items-baseline justify-between mb-6">
+                      <div className="text-4xl md:text-5xl font-serif tabular-nums">
+                        {formatINR(budget)}
+                      </div>
+                      <span className="text-xs font-serif italic text-gray-400">
+                        ~{formatINR(Math.round(budget / Math.max(guests, 1)))} / person
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={20000}
+                      max={300000}
+                      step={5000}
+                      value={budget}
+                      onChange={(e) => setBudget(Number(e.target.value))}
+                      className="w-full accent-black cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs font-sans text-gray-400 mt-3 tracking-wider">
+                      <span>₹20,000</span>
+                      <span>₹3,00,000+</span>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-black/10">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-label text-[10px] text-gray-400">WHAT TO EXPECT</span>
+                        <span className="text-xs font-serif font-semibold text-black">{expectation.tier}</span>
+                      </div>
+                      <p className="text-sm font-serif italic text-gray-600 leading-relaxed">
+                        {expectation.summary}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-10 relative h-24 rounded-2xl overflow-hidden border border-black/10 flex items-center px-6">
+              <img
+                src={foodBackdrop.image}
+                alt={foodBackdrop.dish}
+                className="absolute inset-0 w-full h-full object-cover opacity-20"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FAF9F6] via-[#FAF9F6]/85 to-transparent" />
+              <div className="relative z-10 flex items-center space-x-3">
+                <Utensils className="w-4 h-4 text-black/60 shrink-0" strokeWidth={1.6} />
+                <div>
+                  <span className="text-label text-[9px] text-gray-400 block">
+                    CULINARY SIGNATURE · {city.name.toUpperCase()}
+                  </span>
+                  <p className="text-xs md:text-sm font-serif italic text-gray-700">
+                    {foodBackdrop.dish}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-black/10 flex justify-end">
+              <button
+                type="button"
+                onClick={handleNext}
+                className="group bg-black text-white px-8 py-4 rounded-full text-xs tracking-[0.2em] uppercase hover:bg-neutral-800 transition-all duration-300 flex items-center space-x-3 shadow-lg cursor-pointer"
+              >
+                <span className="font-sans font-medium">
+                  {step === 4 ? 'Curate Journeys' : 'Next'}
+                </span>
+                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </button>
+            </div>
+          </motion.div>
+        );
+      };
+
+      const PackageCard = ({ pkg, city, budget, onClick }) => {
+        const isWithinBudget = !budget || pkg.baseCost <= budget;
+
+        return (
+          <motion.div
+            layoutId={`card-${pkg.id}`}
+            onClick={onClick}
+            whileHover={{ y: -6 }}
+            transition={{ duration: 0.35, ease: EASING }}
+            className="group bg-white border border-black/15 rounded-2xl overflow-hidden cursor-pointer flex flex-col justify-between shadow-sm hover:shadow-xl transition-shadow"
+          >
+            <div>
+              <div className="relative h-60 overflow-hidden bg-neutral-900">
+                <motion.img
+                  layoutId={`image-${pkg.id}`}
+                  src={pkg.image}
+                  alt={pkg.theme}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[10px] tracking-widest uppercase font-sans">
+                    {pkg.nights} Nights
+                  </span>
+                </div>
+                {isWithinBudget && (
+                  <div className="absolute top-4 right-4">
+                    <span className="px-2.5 py-1 rounded-full bg-white/95 text-black text-[10px] tracking-wider uppercase font-sans font-medium">
+                      Within Budget
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6">
+                <p className="text-label text-[10px] text-gray-400 mb-1.5">{city.name}</p>
+                <motion.h3 layoutId={`title-${pkg.id}`} className="text-2xl font-serif text-display mb-3 group-hover:italic">
+                  {pkg.theme}
+                </motion.h3>
+                <p className="text-xs font-serif italic text-gray-500 line-clamp-2">
+                  {pkg.hotelName}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-black/10 flex items-center justify-between bg-[#FAF9F6]/60">
+              <div>
+                <span className="text-[10px] uppercase tracking-widest text-gray-400 block font-sans">Est. Total</span>
+                <span className="text-xl font-serif tabular-nums font-medium">{formatINR(pkg.baseCost)}</span>
+              </div>
+              <span className="inline-flex items-center space-x-1 text-xs uppercase tracking-widest font-sans font-medium group-hover:translate-x-1 transition-transform">
+                <span>Explore</span>
+                <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+          </motion.div>
+        );
+      };
+
+      const ExpandedPackage = ({ pkg, city, onClose, onBook }) => {
+        const { scrollYProgress } = useScroll();
+        const pathLength = useSpring(scrollYProgress, { stiffness: 400, damping: 90 });
+
+        const stops = [
+          { 
+            id: 'flight-out', 
+            type: 'flight', 
+            title: `Flight to ${city.name}`, 
+            time: `Departure: ${pkg.startDate || 'Start Date'} · 09:00 AM`, 
+            desc: pkg.flightName || 'IndiGo 6E Direct Non-Stop', 
+            cost: pkg.flightCost || 12000 
+          },
+          { 
+            id: 'hotel-checkin', 
+            type: 'hotel', 
+            title: `Check-in: ${pkg.hotelName ? pkg.hotelName.split('(')[0] : 'Luxury Heritage Hotel'}`, 
+            time: `Check-in: ${pkg.startDate || 'Start Date'} · 14:00 PM`, 
+            desc: `${pkg.nights} Nights Stay. Heritage Suite, Breakfast & Butler Service Included.`, 
+            cost: pkg.hotelCost || 24000 
+          }
+        ];
+
+        for (let day = 1; day <= (pkg.nights || 3); day++) {
+          stops.push({
+            id: `day-${day}-discover`,
+            type: 'place',
+            title: `Day ${day}: Curated ${pkg.theme} Walkthrough`,
+            time: `Day ${day} · 11:00 AM`,
+            desc: `Private guided walkthrough of iconic monuments & local artisan quarters.`,
+            cost: Math.round((pkg.foodCost || 7000) / (pkg.nights || 3) * 0.3)
+          });
+          stops.push({
+            id: `day-${day}-dine`,
+            type: 'food',
+            title: `Day ${day} Dining: ${pkg.foodName ? pkg.foodName.split('&')[0] : 'Chef\'s Special Tasting'}`,
+            time: `Day ${day} · 20:00 PM`,
+            desc: `Reserved table for signature dining and regional delicacies.`,
+            cost: Math.round((pkg.foodCost || 7000) / (pkg.nights || 3) * 0.7)
+          });
+        }
+
+        stops.push({
+          id: 'flight-back',
+          type: 'flight',
+          title: `Return Flight from ${city.name}`,
+          time: `Return: ${pkg.endDate || 'End Date'} · 18:00 PM`,
+          desc: 'Direct return flight & airport chauffeur drop-off.',
+          cost: pkg.transportCost || 4000
+        });
+
+        return (
+          <motion.div 
+            className="fixed inset-0 z-50 bg-[#F5F5F5] overflow-y-auto overflow-x-hidden flex flex-col md:flex-row"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
+          >
+            <motion.div 
+              layoutId={`card-${pkg.id}`}
+              className="w-full md:w-2/5 h-[50vh] md:h-screen md:sticky top-0 relative bg-black text-white"
+            >
+              <motion.img 
+                layoutId={`image-${pkg.id}`}
+                src={pkg.image}
+                alt={pkg.theme}
+                className="absolute inset-0 w-full h-full object-cover opacity-60"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              
+              <button 
+                onClick={onClose}
+                className="group absolute top-8 left-8 z-10 flex items-center space-x-2 px-4 py-2 bg-black/60 hover:bg-black backdrop-blur-md border border-white/20 rounded-full text-white text-xs tracking-widest uppercase transition-all duration-300 shadow-lg cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                <span className="font-sans font-medium">Close Itinerary</span>
+              </button>
+
+              <div className="absolute bottom-12 left-12 right-12">
+                <p className="text-label tracking-widest text-white/70 mb-2">
+                  {city.name} · {pkg.nights} Nights
+                </p>
+                {pkg.dateRangeStr && (
+                  <p className="text-sm font-serif italic text-white/90 mb-4">{pkg.dateRangeStr}</p>
+                )}
+                <motion.h2 layoutId={`title-${pkg.id}`} className="text-5xl md:text-7xl font-serif text-display mb-6">
+                  {pkg.theme}
+                </motion.h2>
+                <div className="h-[1px] w-full bg-white/20 mb-6" />
+                <div className="flex justify-between items-end">
+                  <div>
+                    <p className="text-sm font-serif italic text-white/70 mb-1">Total Package Price</p>
+                    <p className="text-3xl font-serif tabular-nums">{formatINR(pkg.baseCost)}</p>
+                  </div>
+                  <button 
+                    onClick={() => onBook(pkg)}
+                    className="group bg-white text-black px-6 py-3 text-sm tracking-widest uppercase hover:bg-gray-200 transition-colors flex items-center space-x-2 cursor-pointer"
+                  >
+                    <span className="font-sans font-medium">Review & Book</span>
+                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="w-full md:w-3/5 p-8 md:p-24 relative">
+              <h3 className="text-3xl font-serif mb-2">The Itinerary</h3>
+              <p className="text-sm font-serif italic text-gray-500 mb-16">
+                Tailored for {pkg.nights} Nights ({pkg.startDate} to {pkg.endDate})
+              </p>
+              
+              <div className="relative">
+                <div className="absolute left-[15px] top-4 bottom-0 w-[2px]">
+                   <svg className="w-full h-full" preserveAspectRatio="none">
+                     <motion.line 
+                       x1="0" y1="0" x2="0" y2="100%" 
+                       className="roadmap-line"
+                       stroke="black" strokeWidth="2"
+                       style={{ pathLength }}
+                     />
+                   </svg>
+                   <div className="absolute inset-0 border-l-2 border-black/10 border-dotted" />
+                </div>
+
+                {stops.map((stop) => (
+                  <div key={stop.id} className="relative pl-16 mb-20 last:mb-0 group">
+                    <div className="absolute left-[9px] top-1.5 w-[14px] h-[14px] rounded-full border-2 border-black bg-[#F5F5F5] group-hover:bg-black transition-colors duration-300 z-10" />
+                    
+                    <div className="text-sm font-serif italic text-gray-500 mb-2">{stop.time}</div>
+                    <h4 className="text-2xl font-serif mb-4">{stop.title}</h4>
+                    <p className="text-gray-600 font-serif leading-relaxed mb-4 max-w-md">{stop.desc}</p>
+                    
+                    <div className="text-sm border border-gray-200 inline-block px-3 py-1 bg-white">
+                      {formatINR(stop.cost)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-20 pt-8 border-t border-black/10 flex justify-between items-center">
+                <div>
+                  <p className="font-serif italic text-gray-500 text-sm">Ready to finalize this journey?</p>
+                </div>
+                <button 
+                  onClick={() => onBook(pkg)}
+                  className="group bg-black text-white px-8 py-4 text-xs tracking-widest uppercase hover:bg-gray-900 transition-colors flex items-center space-x-3 cursor-pointer"
+                >
+                  <span>Proceed to Payment & Booking</span>
+                  <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        );
+      };
+
+      const PaymentView = ({ pkg, city, tripParams, onBackToPlan }) => {
+        const [timeString, setTimeString] = useState('');
+        const [isRefreshing, setIsRefreshing] = useState(false);
+
+        useEffect(() => {
+          const updateTime = () => {
+            const now = new Date();
+            setTimeString(now.toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          };
+          updateTime();
+          const interval = setInterval(updateTime, 1000);
+          return () => clearInterval(interval);
+        }, []);
+
+        const handleRefresh = () => {
+          setIsRefreshing(true);
+          setTimeout(() => {
+            setIsRefreshing(false);
+            const now = new Date();
+            setTimeString(now.toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          }, 800);
+        };
+
+        if (!pkg) {
+          return (
+            <div className="min-h-screen pt-32 pb-24 px-6 max-w-4xl mx-auto flex flex-col items-center justify-center text-center">
+              <CreditCard className="w-12 h-12 text-gray-400 mb-6" strokeWidth={1} />
+              <h2 className="text-3xl font-serif text-display mb-4">No Trip Selected For Booking</h2>
+              <p className="font-serif italic text-gray-500 mb-8 max-w-md">
+                Please select a city and explore our curated packages to view itemized pricing and booking options.
+              </p>
+              <button 
+                onClick={onBackToPlan}
+                className="group bg-black text-white px-8 py-4 text-xs tracking-widest uppercase hover:bg-gray-900 transition-colors flex items-center space-x-2 cursor-pointer"
+              >
+                <span>Select A Trip Plan</span>
+                <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </button>
+            </div>
+          );
+        }
+
+        const flightCost = pkg.flightCost || Math.round(pkg.baseCost * 0.28);
+        const hotelCost = pkg.hotelCost || Math.round(pkg.baseCost * 0.48);
+        const foodCost = pkg.foodCost || Math.round(pkg.baseCost * 0.15);
+        const transportCost = pkg.transportCost || Math.round(pkg.baseCost * 0.09);
+        const subtotal = flightCost + hotelCost + foodCost + transportCost;
+        const bufferCost = Math.round(subtotal * 0.08);
+        const totalAmount = subtotal + bufferCost;
+
+        const buildFlightUrl = (originInput, destCity, startDate, endDate) => {
+          const originClean = (originInput || 'Mumbai').trim();
+          const destClean = (destCity?.name || 'Delhi').trim();
+          return `https://www.goindigo.in/flight-search.html?origin=${encodeURIComponent(originClean)}&destination=${encodeURIComponent(destClean)}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
+        };
+
+        const dynamicFlightLink = buildFlightUrl(tripParams?.origin, city, pkg?.startDate, pkg?.endDate);
+
+        const sourcingItems = [
+          {
+            id: 'flight',
+            category: 'Flights',
+            icon: Plane,
+            name: pkg.flightName || `${city ? city.name : 'India'} Roundtrip Flight`,
+            details: `${tripParams?.origin || 'Bangalore'} ↔ ${city ? city.name : 'Destination'} · Out: ${pkg.startDate || 'Start Date'} | Ret: ${pkg.endDate || 'End Date'}`,
+            cost: flightCost,
+            provider: 'Direct Airline Sourcing',
+            linkText: 'Book Flight on Provider Site',
+            url: dynamicFlightLink
+          },
+          {
+            id: 'hotel',
+            category: 'Accommodation',
+            icon: Hotel,
+            name: pkg.hotelName || `${city ? city.name : 'Luxury'} Boutique Hotel`,
+            details: `${pkg.nights} Nights (${pkg.startDate || 'Start'} to ${pkg.endDate || 'End'}) · ${tripParams?.guests || 2} Guests · ${tripParams?.rooms || 1} Room(s) · Breakfast Included`,
+            cost: hotelCost,
+            provider: 'Hotel Direct / Official Partner',
+            linkText: 'Reserve Room at Official Site',
+            url: pkg.hotelLink || 'https://www.theimperialindia.com'
+          },
+          {
+            id: 'food',
+            category: 'Dining & Experiences',
+            icon: Utensils,
+            name: pkg.foodName || 'Curated Culinary & Heritage Pass',
+            details: `${pkg.nights} Days of reserved tables & landmark entry vouchers`,
+            cost: foodCost,
+            provider: 'Verified Dining Sourcing',
+            linkText: 'View Restaurant & Passes',
+            url: pkg.foodLink || 'https://indianaccent.com'
+          },
+          {
+            id: 'transport',
+            category: 'Local Transport',
+            icon: Car,
+            name: pkg.transportName || 'Chauffeur Driven Transit',
+            details: `Private airport transfers & chauffeur service for ${pkg.nights + 1} days`,
+            cost: transportCost,
+            provider: 'Local Chauffeur Sourcing',
+            linkText: 'Pre-book Chauffeur Service',
+            url: pkg.transportLink || 'https://www.uber.com'
+          }
+        ];
+
+        return (
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: EASING }}
+            className="min-h-screen pt-32 pb-24 px-6 md:px-12 max-w-[1200px] mx-auto bg-[#FAF9F6]"
+          >
+            <div className="flex flex-col md:flex-row md:items-end justify-between pb-8 border-b border-black/10 mb-12">
+              <div>
+                <button 
+                  onClick={onBackToPlan}
+                  className="group inline-flex items-center space-x-2.5 px-4 py-2 mb-6 rounded-full bg-black/5 hover:bg-black text-black hover:text-white border border-black/10 transition-all duration-300 shadow-sm cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                  <span className="text-label text-xs tracking-widest font-sans font-medium">Back to Packages</span>
+                </button>
+                <span className="text-label text-xs text-gray-500 mb-2 block">DIRECT PROVIDER SOURCING</span>
+                <h1 className="text-4xl md:text-6xl font-serif text-display">Payment & Booking Breakdown</h1>
+              </div>
+              <div className="mt-4 md:mt-0 flex items-center space-x-3 text-xs font-serif italic text-gray-500">
+                <span>Live Sourcing Rates · {timeString || '12:00:00'}</span>
+                <button 
+                  onClick={handleRefresh}
+                  className={`p-1.5 rounded-full hover:bg-black/5 transition-transform cursor-pointer ${isRefreshing ? 'animate-spin' : ''}`}
+                  title="Refresh pricing data"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+              <div className="lg:col-span-7 space-y-8">
+                <div className="p-6 bg-white border border-gray-200">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <span className="text-label text-[10px] text-gray-500 block">SELECTED ITINERARY</span>
+                      <h3 className="text-2xl font-serif">{pkg.theme}</h3>
+                    </div>
+                    <span className="px-3 py-1 bg-black text-white text-xs font-serif rounded-full">
+                      {pkg.nights} Nights
+                    </span>
+                  </div>
+                  <p className="text-sm font-serif italic text-gray-600 mb-4">
+                    {city ? city.name : 'Destination'} · {pkg.dateRangeStr || 'Selected Travel Dates'}
+                  </p>
+                  <div className="flex flex-wrap gap-4 text-xs font-serif text-gray-500 pt-4 border-t border-gray-100">
+                    <span><strong>From:</strong> {tripParams?.origin || 'Bangalore'}</span>
+                    <span><strong>Guests:</strong> {tripParams?.guests || 2}</span>
+                    <span><strong>Rooms:</strong> {tripParams?.rooms || 1}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h2 className="text-2xl font-serif">Verified Direct Sourcing Links</h2>
+                  {sourcingItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.id} className="p-6 bg-white border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2 text-xs text-gray-500">
+                            <Icon className="w-4 h-4 text-black" strokeWidth={1.5} />
+                            <span className="uppercase tracking-wider">{item.category}</span>
+                            <span>·</span>
+                            <span className="italic">{item.provider}</span>
+                          </div>
+                          <h4 className="text-lg font-serif font-medium text-black">{item.name}</h4>
+                          <p className="text-xs text-gray-500">{item.details}</p>
+                        </div>
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
+                          <span className="text-lg font-serif tabular-nums font-semibold">{formatINR(item.cost)}</span>
+                          <a 
+                            href={item.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1.5 text-xs text-black underline underline-offset-4 hover:opacity-75 font-sans uppercase tracking-wider"
+                          >
+                            <span>{item.linkText}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="lg:col-span-5">
+                <div className="bg-white border border-gray-200 p-8 sticky top-32">
+                  <h2 className="text-2xl font-serif mb-6 pb-4 border-b border-black/10">Cost Summary</h2>
+
+                  <div className="space-y-4 mb-8 font-serif text-sm">
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Flights (Roundtrip)</span>
+                      <span className="tabular-nums">{formatINR(flightCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Accommodation ({pkg.nights} Nights, {tripParams?.rooms || 1} Room{tripParams?.rooms > 1 ? 's' : ''})</span>
+                      <span className="tabular-nums">{formatINR(hotelCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Dining & Experiences ({pkg.nights} Days)</span>
+                      <span className="tabular-nums">{formatINR(foodCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Local Transit & Chauffeur</span>
+                      <span className="tabular-nums">{formatINR(transportCost)}</span>
+                    </div>
+
+                    <div className="h-[1px] bg-gray-200 my-2" />
+
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span className="flex items-center space-x-1">
+                        <span>8% Contingency Reserve</span>
+                        <span className="text-[10px] text-gray-400" title="Buffer for price fluctuations">(Buffer)</span>
+                      </span>
+                      <span className="tabular-nums text-gray-500">{formatINR(bufferCost)}</span>
+                    </div>
+
+                    <div className="h-[1px] bg-black my-4" />
+
+                    <div className="flex justify-between items-baseline text-black pt-2">
+                      <span className="text-lg font-serif">Total Estimated Cost</span>
+                      <span className="text-3xl font-serif tabular-nums font-medium">{formatINR(totalAmount)}</span>
+                    </div>
+                    
+                    {tripParams?.budget && (
+                      <p className="text-xs text-right text-gray-500 italic mt-1">
+                        Budget: {formatINR(tripParams.budget)} · {totalAmount <= tripParams.budget ? '✓ Within Allocated Budget' : 'Over budget by ' + formatINR(totalAmount - tripParams.budget)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="p-4 border border-dashed border-gray-300 bg-white text-xs font-serif text-gray-600 space-y-2">
+                    <div className="flex items-center space-x-2 text-black font-medium">
+                      <Compass className="w-4 h-4" />
+                      <span>Transparent Booking Guarantee</span>
+                    </div>
+                    <p>
+                      Wayline does not add markup to flight or hotel prices. All sourcing links direct to partner booking engines.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      };
+
+      function App() {
+        const [isLoading, setIsLoading] = useState(true);
+        const [appState, setAppState] = useState('landing');
+        const [selectedCity, setSelectedCity] = useState(CITIES[0]);
+        const [tripParams, setTripParams] = useState({ 
+          origin: 'Bangalore', 
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          dates: '3 Nights', 
+          guests: 2, 
+          rooms: 1,
+          budget: 50000 
+        });
+        const [expandedPkg, setExpandedPkg] = useState(null);
+        const [selectedPkgForBooking, setSelectedPkgForBooking] = useState(null);
+
+        useEffect(() => {
+          const rawPackages = MOCK_PACKAGES[selectedCity.id] || MOCK_PACKAGES.delhi;
+          if (rawPackages && rawPackages[0]) {
+            setSelectedPkgForBooking(getAdjustedPackage(rawPackages[0], tripParams));
+          }
+        }, [selectedCity, tripParams]);
+
+        const handleCitySelect = (city) => {
+          setSelectedCity(city);
+          setAppState('details');
+        };
+
+        const handleDetailsComplete = (params) => {
+          setTripParams(params);
+          setAppState('packages');
+        };
+
+        const handleBookPackage = (pkg) => {
+          setSelectedPkgForBooking(pkg);
+          setExpandedPkg(null);
+          setAppState('payment');
+        };
+
+        const triggerLogoReset = () => {
+          setExpandedPkg(null);
+          setAppState('landing');
+          setIsLoading(true);
+        };
+
+        const handleSelectTab = (tabId) => {
+          if (tabId === 'location') {
+            triggerLogoReset();
+          } else if (tabId === 'plan') {
+            if (!tripParams) {
+              setAppState('details');
+            } else {
+              setAppState('packages');
+            }
+          } else if (tabId === 'payment') {
+            setAppState('payment');
+          }
+        };
+
+        const currentPackages = (MOCK_PACKAGES[selectedCity.id] || MOCK_PACKAGES.delhi).map(pkg => 
+          getAdjustedPackage(pkg, tripParams)
+        );
+
+        return (
+          <div className="min-h-screen bg-[#FAF9F6] text-black font-serif relative selection:bg-black selection:text-white">
+            <AnimatePresence mode="wait">
+              {isLoading && (
+                <LoadingScreen key="loader" onFinish={() => setIsLoading(false)} />
+              )}
+            </AnimatePresence>
+
+            {!isLoading && (
+              <>
+                <TopBar activeTab={appState === 'landing' ? 'location' : appState === 'payment' ? 'payment' : 'plan'} onSelectTab={handleSelectTab} />
+
+                <main>
+                  {appState === 'landing' && (
+                    <CityHero onSelectCity={handleCitySelect} />
+                  )}
+
+                  {appState === 'details' && (
+                    <TripDetailsSheet 
+                      city={selectedCity} 
+                      onComplete={handleDetailsComplete}
+                      onBack={() => setAppState('landing')}
+                    />
+                  )}
+
+                  {appState === 'packages' && (
+                    <div className="min-h-screen pt-32 pb-24 px-6 md:px-12 max-w-[1440px] mx-auto bg-[#FAF9F6]">
+                      <div className="relative rounded-3xl overflow-hidden mb-14 border border-black/10 bg-white">
+                        <img
+                          src={(CITY_FOOD_BACKGROUNDS[selectedCity.id] || CITY_FOOD_BACKGROUNDS.delhi).image}
+                          alt={selectedCity.name}
+                          className="absolute inset-0 w-full h-full object-cover opacity-15"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-[#FAF9F6] via-[#FAF9F6]/90 to-[#FAF9F6]/60" />
+
+                        <div className="relative z-10 p-8 md:p-10 flex flex-col md:flex-row md:items-end justify-between">
+                          <div>
+                            <span className="text-label text-xs text-gray-500 mb-2 block">CURATED EXPERIENCES & GASTRONOMY</span>
+                            <h1 className="text-5xl md:text-7xl font-serif text-display mb-3">{selectedCity.name}</h1>
+                            <p className="text-xs md:text-sm font-serif italic text-gray-600 flex items-center space-x-2">
+                              <Utensils className="w-3.5 h-3.5 text-black/70" />
+                              <span>Featuring {(CITY_FOOD_BACKGROUNDS[selectedCity.id] || CITY_FOOD_BACKGROUNDS.delhi).dish}</span>
+                            </p>
+                          </div>
+                          <div className="mt-6 md:mt-0 text-left md:text-right font-serif text-sm text-gray-600">
+                            <p>From {tripParams.origin || 'Bangalore'} · {tripParams.guests} Guests · {tripParams.rooms} Room(s)</p>
+                            <p className="italic">{tripParams.dates} ({tripParams.startDate} to {tripParams.endDate})</p>
+                            <p className="font-semibold text-black mt-1">Target Budget: {formatINR(tripParams.budget)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {currentPackages.map((pkg) => (
+                          <PackageCard 
+                            key={pkg.id} 
+                            pkg={pkg} 
+                            city={selectedCity}
+                            budget={tripParams.budget}
+                            onClick={() => setExpandedPkg(pkg)}
+                          />
+                        ))}
+                      </div>
+
+                      <AnimatePresence>
+                        {expandedPkg && (
+                          <ExpandedPackage 
+                            pkg={expandedPkg} 
+                            city={selectedCity} 
+                            onClose={() => setExpandedPkg(null)}
+                            onBook={handleBookPackage}
+                          />
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+
+                  {appState === 'payment' && (
+                    <PaymentView 
+                      pkg={selectedPkgForBooking} 
+                      city={selectedCity}
+                      tripParams={tripParams}
+                      onBackToPlan={() => setAppState('packages')}
+                    />
+                  )}
+                </main>
+              </>
+            )}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
